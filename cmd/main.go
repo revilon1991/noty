@@ -3,7 +3,7 @@ package main
 import (
 	jira "github.com/andygrunwald/go-jira"
 	"github.com/davecgh/go-spew/spew"
-	"github.com/joho/godotenv"
+	_ "github.com/joho/godotenv/autoload"
 	"os"
 	"strconv"
 	"time"
@@ -44,8 +44,6 @@ type WorklogInfo struct {
 }
 
 func main() {
-	_ = godotenv.Load()
-
 	tp := jira.BasicAuthTransport{
 		Username: os.Getenv("JIRA_API_USERNAME"),
 		Password: os.Getenv("JIRA_API_TOKEN"),
