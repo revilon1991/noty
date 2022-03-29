@@ -4,6 +4,7 @@ import (
 	jira "github.com/andygrunwald/go-jira"
 	"github.com/davecgh/go-spew/spew"
 	_ "github.com/joho/godotenv/autoload"
+	"io"
 	"os"
 	"strconv"
 	"time"
@@ -43,7 +44,11 @@ type WorklogInfo struct {
 	TimeSpentSeconds int64  `json:"timeSpentSeconds"`
 }
 
+var Debug string
+
 func main() {
+	Debug = "1"
+
 	tp := jira.BasicAuthTransport{
 		Username: os.Getenv("JIRA_API_USERNAME"),
 		Password: os.Getenv("JIRA_API_TOKEN"),
@@ -66,8 +71,13 @@ func retrieveWorklogIds() *WorklogIds {
 
 	worklog := &Worklog{}
 
-	_, err := jiraClient.Do(req, worklog)
+	resRaw, err := jiraClient.Do(req, worklog)
 	if err != nil {
+		if Debug == "1" {
+			bodyRaw, _ := io.ReadAll(resRaw.Body)
+			spew.Dump(string(bodyRaw))
+		}
+
 		panic(err)
 	}
 
@@ -85,9 +95,14 @@ func retrieveWorklogInfoList(worklogIds *WorklogIds) *[]WorklogInfo {
 
 	worklogInfoList := &[]WorklogInfo{}
 
-	_, err := jiraClient.Do(req, worklogInfoList)
+	resRaw, err := jiraClient.Do(req, worklogInfoList)
 
 	if err != nil {
+		if Debug == "1" {
+			bodyRaw, _ := io.ReadAll(resRaw.Body)
+			spew.Dump(string(bodyRaw))
+		}
+
 		panic(err)
 	}
 
