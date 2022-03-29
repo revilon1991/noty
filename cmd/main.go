@@ -1,12 +1,14 @@
 package main
 
 import (
+	"fmt"
 	jira "github.com/andygrunwald/go-jira"
 	"github.com/davecgh/go-spew/spew"
 	_ "github.com/joho/godotenv/autoload"
 	"io"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -31,17 +33,44 @@ type WorklogIds struct {
 
 type WorklogInfo struct {
 	Author struct {
-		DisplayName string `json:"displayName"`
-		AccountId   string `json:"accountId"`
-		Active      bool   `json:"active"`
+		DisplayName  string `json:"displayName"`
+		AccountId    string `json:"accountId"`
+		Active       bool   `json:"active"`
+		EmailAddress string `json:"emailAddress"`
 	} `json:"author"`
 	UpdateAuthor struct {
-		DisplayName string `json:"displayName"`
-		AccountId   string `json:"accountId"`
-		Active      bool   `json:"active"`
+		DisplayName  string `json:"displayName"`
+		AccountId    string `json:"accountId"`
+		Active       bool   `json:"active"`
+		EmailAddress string `json:"emailAddress"`
 	} `json:"updateAuthor"`
 	TimeSpent        string `json:"timeSpent"`
 	TimeSpentSeconds int64  `json:"timeSpentSeconds"`
+	Started          string `json:"started"`
+}
+
+type Haystack []string
+
+func (haystack Haystack) Has(needle string) bool {
+	for _, iterable := range haystack {
+		if iterable == needle {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (Haystack) Make(string string) Haystack {
+	splitString := strings.Split(string, ",")
+
+	haystack := make(Haystack, len(splitString))
+
+	for _, item := range splitString {
+		haystack = append(haystack, item)
+	}
+
+	return haystack
 }
 
 var Debug string
@@ -59,15 +88,26 @@ func main() {
 	worklogIds := retrieveWorklogIds()
 	worklogInfoList := retrieveWorklogInfoList(worklogIds)
 
-	spew.Dump(worklogInfoList)
+	sumWorkHoursEachUser := calcSumWorkHoursEachUser(worklogInfoList)
+
+	emailsForObservation := Haystack.Make(Haystack{}, os.Getenv("JIRA_EMAILS_FOR_OBSERVATION"))
+
+	fmt.Printf("from %s\n", getSinceDate())
+
+	for email, timeSpentSeconds := range sumWorkHoursEachUser {
+		if !emailsForObservation.Has(email) {
+			continue
+		}
+
+		fmt.Printf("%s - %s hours\n", email, strconv.FormatInt(timeSpentSeconds/60/60, 10))
+	}
 }
 
 func retrieveWorklogIds() *WorklogIds {
-	now := time.Now()
-	year, month, day := now.Date()
-	since := time.Date(year, month, day, 0, 0, 0, 0, now.Location()).UnixMilli()
+	sinceDate := getSinceDate()
+	sinceTs := sinceDate.UnixMilli()
 
-	req, _ := jiraClient.NewRequest("GET", "/rest/api/3/worklog/updated?since="+strconv.FormatInt(since, 10), nil)
+	req, _ := jiraClient.NewRequest("GET", "/rest/api/3/worklog/updated?since="+strconv.FormatInt(sinceTs, 10), nil)
 
 	worklog := &Worklog{}
 
@@ -107,4 +147,28 @@ func retrieveWorklogInfoList(worklogIds *WorklogIds) *[]WorklogInfo {
 	}
 
 	return worklogInfoList
+}
+
+func calcSumWorkHoursEachUser(worklogInfoList *[]WorklogInfo) map[string]int64 {
+	userWorklogList := make(map[string]int64)
+	sinceDate := getSinceDate()
+
+	for _, item := range *worklogInfoList {
+		started, _ := time.Parse("2006-01-02T15:04:05.999-0700", item.Started)
+
+		if sinceDate.After(started) {
+			continue
+		}
+
+		userWorklogList[item.Author.EmailAddress] += item.TimeSpentSeconds
+	}
+
+	return userWorklogList
+}
+
+func getSinceDate() time.Time {
+	loc, _ := time.LoadLocation("Europe/Moscow")
+	year, month, day := time.Now().In(loc).Date()
+
+	return time.Date(year, month, day, 0, 0, 0, 0, loc)
 }
