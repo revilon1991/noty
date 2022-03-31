@@ -65,10 +65,7 @@ func (Haystack) Make(string string) Haystack {
 	splitString := strings.Split(string, ",")
 
 	haystack := make(Haystack, len(splitString))
-
-	for _, item := range splitString {
-		haystack = append(haystack, item)
-	}
+	copy(haystack, splitString)
 
 	return haystack
 }
@@ -88,9 +85,9 @@ func main() {
 	worklogIds := retrieveWorklogIds()
 	worklogInfoList := retrieveWorklogInfoList(worklogIds)
 
-	sumWorkHoursEachUser := calcSumWorkHoursEachUser(worklogInfoList)
-
 	emailsForObservation := Haystack.Make(Haystack{}, os.Getenv("JIRA_EMAILS_FOR_OBSERVATION"))
+
+	sumWorkHoursEachUser := calcSumWorkHoursEachUser(worklogInfoList, emailsForObservation)
 
 	fmt.Printf("from %s\n", getSinceDate())
 
@@ -149,9 +146,13 @@ func retrieveWorklogInfoList(worklogIds *WorklogIds) *[]WorklogInfo {
 	return worklogInfoList
 }
 
-func calcSumWorkHoursEachUser(worklogInfoList *[]WorklogInfo) map[string]int64 {
+func calcSumWorkHoursEachUser(worklogInfoList *[]WorklogInfo, emailsForObservation Haystack) map[string]int64 {
 	userWorklogList := make(map[string]int64)
 	sinceDate := getSinceDate()
+
+	for _, email := range emailsForObservation {
+		userWorklogList[email] = 0
+	}
 
 	for _, item := range *worklogInfoList {
 		started, _ := time.Parse("2006-01-02T15:04:05.999-0700", item.Started)
