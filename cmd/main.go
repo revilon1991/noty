@@ -89,7 +89,7 @@ func main() {
 	emailsForObservation := Haystack.Make(Haystack{}, os.Getenv("JIRA_EMAILS_FOR_OBSERVATION"))
 
 	sumWorkHoursEachUser := calcSumWorkHoursEachUser(worklogInfoList, emailsForObservation)
-	tresholdHours, _ := strconv.Atoi(os.Getenv("JIRA_THRESHOLD_HOURS"))
+	thresholdHours, _ := strconv.Atoi(os.Getenv("JIRA_THRESHOLD_HOURS"))
 
 	fmt.Printf("from %s\n", getSinceDate())
 
@@ -111,7 +111,7 @@ func main() {
 
 		fmt.Printf("%s - %.2f hours\n", email, hoursLogged)
 
-		if int(timeSpentSeconds/60/60) < tresholdHours {
+		if int(timeSpentSeconds/60/60) < thresholdHours {
 			var att slack.AttachmentField
 			att.Value = fmt.Sprintf("%s - %.2f hours logged\n", email, hoursLogged)
 
