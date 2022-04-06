@@ -5,6 +5,7 @@ import (
 	jira "github.com/andygrunwald/go-jira"
 	"github.com/davecgh/go-spew/spew"
 	_ "github.com/joho/godotenv/autoload"
+	"github.com/slack-go/slack"
 	"io"
 	"os"
 	"strconv"
@@ -88,16 +89,37 @@ func main() {
 	emailsForObservation := Haystack.Make(Haystack{}, os.Getenv("JIRA_EMAILS_FOR_OBSERVATION"))
 
 	sumWorkHoursEachUser := calcSumWorkHoursEachUser(worklogInfoList, emailsForObservation)
+	thresholdHours, _ := strconv.Atoi(os.Getenv("JIRA_THRESHOLD_HOURS"))
 
 	fmt.Printf("from %s\n", getSinceDate())
+
+	slackApi := slack.New(os.Getenv("SLACK_TOKEN"))
+
+	attachment := slack.Attachment{
+		Pretext: "Time log notification",
+		Text:    "Do not forget log time for today",
+		Color:   "#FFC700",
+		Fields:  []slack.AttachmentField{},
+	}
 
 	for email, timeSpentSeconds := range sumWorkHoursEachUser {
 		if !emailsForObservation.Has(email) {
 			continue
 		}
 
-		fmt.Printf("%s - %s hours\n", email, strconv.FormatInt(timeSpentSeconds/60/60, 10))
+		hoursLogged := float64(timeSpentSeconds) / 60 / 60
+
+		fmt.Printf("%s - %.2f hours\n", email, hoursLogged)
+
+		if int(timeSpentSeconds/60/60) < thresholdHours {
+			var att slack.AttachmentField
+			att.Value = fmt.Sprintf("%s - %.2f hours logged\n", email, hoursLogged)
+
+			attachment.Fields = append(attachment.Fields, att)
+		}
 	}
+
+	_, _, _ = slackApi.PostMessage(os.Getenv("SLACK_CHANNEL"), slack.MsgOptionAttachments(attachment))
 }
 
 func retrieveWorklogIds() *WorklogIds {
