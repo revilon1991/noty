@@ -4,16 +4,23 @@ import (
 	"fmt"
 	jira "github.com/andygrunwald/go-jira"
 	"github.com/davecgh/go-spew/spew"
-	_ "github.com/joho/godotenv/autoload"
+	"github.com/getlantern/systray"
+	"github.com/joho/godotenv"
 	"github.com/slack-go/slack"
 	"io"
+	"log"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 )
 
 var jiraClient *jira.Client
+var slackClient *slack.Client
+var emailsForObservation Haystack
+var env map[string]string
 
 type Worklog struct {
 	ValueList []struct {
@@ -72,54 +79,54 @@ func (Haystack) Make(string string) Haystack {
 }
 
 var Debug string
+var Version = "0"
 
 func main() {
 	Debug = "1"
 
+	logSetup()
+	env, _ = godotenv.Read()
 	tp := jira.BasicAuthTransport{
-		Username: os.Getenv("JIRA_API_USERNAME"),
-		Password: os.Getenv("JIRA_API_TOKEN"),
+		Username: env["JIRA_API_USERNAME"],
+		Password: env["JIRA_API_TOKEN"],
 	}
+	jiraClient, _ = jira.NewClient(tp.Client(), env["JIRA_API_BASE_URL"])
+	slackClient = slack.New(env["SLACK_TOKEN"])
+	emailsForObservation = Haystack.Make(Haystack{}, env["JIRA_EMAILS_FOR_OBSERVATION"])
 
-	jiraClient, _ = jira.NewClient(tp.Client(), os.Getenv("JIRA_API_BASE_URL"))
+	systray.Run(onReady, nil)
+}
 
-	worklogIds := retrieveWorklogIds()
-	worklogInfoList := retrieveWorklogInfoList(worklogIds)
-
-	emailsForObservation := Haystack.Make(Haystack{}, os.Getenv("JIRA_EMAILS_FOR_OBSERVATION"))
-
-	sumWorkHoursEachUser := calcSumWorkHoursEachUser(worklogInfoList, emailsForObservation)
-	thresholdHours, _ := strconv.Atoi(os.Getenv("JIRA_THRESHOLD_HOURS"))
-
-	fmt.Printf("from %s\n", getSinceDate())
-
-	slackApi := slack.New(os.Getenv("SLACK_TOKEN"))
-
-	attachment := slack.Attachment{
-		Pretext: "Time log notification",
-		Text:    "Do not forget log time for today",
-		Color:   "#FFC700",
-		Fields:  []slack.AttachmentField{},
-	}
-
-	for email, timeSpentSeconds := range sumWorkHoursEachUser {
-		if !emailsForObservation.Has(email) {
-			continue
+func logSetup() {
+	if Version != "0" {
+		ep, err := os.Executable()
+		if err != nil {
+			log.Fatalln("os.Executable:", err)
+		}
+		err = os.Chdir(filepath.Join(filepath.Dir(ep), "..", "Resources"))
+		if err != nil {
+			log.Fatalln("os.Chdir:", err)
 		}
 
-		hoursLogged := float64(timeSpentSeconds) / 60 / 60
-
-		fmt.Printf("%s - %.2f hours\n", email, hoursLogged)
-
-		if int(timeSpentSeconds/60/60) < thresholdHours {
-			var att slack.AttachmentField
-			att.Value = fmt.Sprintf("%s - %.2f hours logged\n", email, hoursLogged)
-
-			attachment.Fields = append(attachment.Fields, att)
+		f, err := os.OpenFile("main.log", os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+		if err != nil {
+			log.Fatalf("error opening file: %v", err)
 		}
-	}
+		defer func() {
+			err = f.Close()
 
-	_, _, _ = slackApi.PostMessage(os.Getenv("SLACK_CHANNEL"), slack.MsgOptionAttachments(attachment))
+			if err != nil {
+				log.Panic(err)
+			}
+		}()
+
+		err = syscall.Dup2(int(f.Fd()), int(os.Stderr.Fd()))
+		if err != nil {
+			log.Fatalf("Failed to redirect stderr to file: %v", err)
+		}
+
+		log.SetOutput(f)
+	}
 }
 
 func retrieveWorklogIds() *WorklogIds {
@@ -194,4 +201,84 @@ func getSinceDate() time.Time {
 	year, month, day := time.Now().In(loc).Date()
 
 	return time.Date(year, month, day, 0, 0, 0, 0, loc)
+}
+
+func onReady() {
+	systray.SetIcon(icon)
+	systray.SetTooltip("Noty")
+
+	mAsk := systray.AddMenuItem("Ask logging", "Each one will get notify if threshold is over")
+	systray.AddSeparator()
+
+	mRefresh := systray.AddMenuItem("Refresh", "Show spent hours of every one")
+	systray.AddSeparator()
+
+	var employeeMenuList = make(map[string]*systray.MenuItem)
+
+	for _, email := range emailsForObservation {
+		employeeMenuList[email] = systray.AddMenuItem(fmt.Sprintf("%s - ? hours", email), "")
+		employeeMenuList[email].Disable()
+	}
+
+	systray.AddSeparator()
+	mQuit := systray.AddMenuItem("Quit", "Quit the whole app")
+
+	go func() {
+		for {
+			select {
+			case <-mQuit.ClickedCh:
+				systray.Quit()
+			case <-mRefresh.ClickedCh:
+				for email, employeeMenu := range employeeMenuList {
+					employeeMenu.Disable()
+					employeeMenuList[email].SetTitle(fmt.Sprintf("%s - ? hours", email))
+				}
+
+				worklogIds := retrieveWorklogIds()
+				worklogInfoList := retrieveWorklogInfoList(worklogIds)
+				sumWorkHoursEachUser := calcSumWorkHoursEachUser(worklogInfoList, emailsForObservation)
+
+				for email, timeSpentSeconds := range sumWorkHoursEachUser {
+					if !emailsForObservation.Has(email) {
+						continue
+					}
+
+					hoursLogged := float64(timeSpentSeconds) / 60 / 60
+
+					employeeMenuList[email].Enable()
+					employeeMenuList[email].SetTitle(fmt.Sprintf("%s - %.2f hours", email, hoursLogged))
+				}
+			case <-mAsk.ClickedCh:
+				thresholdHours, _ := strconv.Atoi(env["JIRA_THRESHOLD_HOURS"])
+
+				attachment := slack.Attachment{
+					Pretext: "Time log notification",
+					Text:    "Do not forget log time for today",
+					Color:   "#FFC700",
+					Fields:  []slack.AttachmentField{},
+				}
+
+				worklogIds := retrieveWorklogIds()
+				worklogInfoList := retrieveWorklogInfoList(worklogIds)
+				sumWorkHoursEachUser := calcSumWorkHoursEachUser(worklogInfoList, emailsForObservation)
+
+				for email, timeSpentSeconds := range sumWorkHoursEachUser {
+					if !emailsForObservation.Has(email) {
+						continue
+					}
+
+					hoursLogged := float64(timeSpentSeconds) / 60 / 60
+
+					if int(timeSpentSeconds/60/60) < thresholdHours {
+						var att slack.AttachmentField
+						att.Value = fmt.Sprintf("%s - %.2f hours logged\n", email, hoursLogged)
+
+						attachment.Fields = append(attachment.Fields, att)
+					}
+				}
+
+				_, _, _ = slackClient.PostMessage(env["SLACK_CHANNEL"], slack.MsgOptionAttachments(attachment))
+			}
+		}
+	}()
 }
