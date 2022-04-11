@@ -1,4 +1,6 @@
 ## [Unreleased]
+
+## [0.1.1] - 2022-04-11
 ### Fixed
 - Panic error if nobody didn't log time
 
