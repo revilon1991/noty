@@ -157,9 +157,13 @@ func retrieveWorklogIds() *WorklogIds {
 }
 
 func retrieveWorklogInfoList(worklogIds *WorklogIds) *[]WorklogInfo {
-	req, _ := jiraClient.NewRequest("POST", "/rest/api/3/worklog/list", worklogIds)
-
 	worklogInfoList := &[]WorklogInfo{}
+
+	if len(worklogIds.Ids) == 0 {
+		return worklogInfoList
+	}
+
+	req, _ := jiraClient.NewRequest("POST", "/rest/api/3/worklog/list", worklogIds)
 
 	resRaw, err := jiraClient.Do(req, worklogInfoList)
 
