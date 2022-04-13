@@ -1,4 +1,6 @@
 ## [Unreleased]
+
+## [0.2.0] - 2022-04-13
 # Added
 - Mention user to slack. Permission - `users:read.email`
 
