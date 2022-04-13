@@ -275,7 +275,14 @@ func onReady() {
 
 					if int(timeSpentSeconds/60/60) < thresholdHours {
 						var att slack.AttachmentField
-						att.Value = fmt.Sprintf("%s - %.2f hours logged\n", email, hoursLogged)
+
+						user, _ := slackClient.GetUserByEmail(email)
+
+						if user == nil {
+							att.Value = fmt.Sprintf("%s - %.2f hours logged\n", email, hoursLogged)
+						} else {
+							att.Value = fmt.Sprintf("<@%s> - %.2f hours logged\n", user.ID, hoursLogged)
+						}
 
 						attachment.Fields = append(attachment.Fields, att)
 					}
