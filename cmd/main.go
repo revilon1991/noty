@@ -129,8 +129,8 @@ func logSetup() {
 	}
 }
 
-func retrieveWorklogIds() *WorklogIds {
-	sinceDate := getSinceDate()
+func retrieveWorklogIds(mYesterday *systray.MenuItem) *WorklogIds {
+	sinceDate := getSinceDate(mYesterday)
 	sinceTs := sinceDate.UnixMilli()
 
 	req, _ := jiraClient.NewRequest("GET", "/rest/api/3/worklog/updated?since="+strconv.FormatInt(sinceTs, 10), nil)
@@ -179,9 +179,13 @@ func retrieveWorklogInfoList(worklogIds *WorklogIds) *[]WorklogInfo {
 	return worklogInfoList
 }
 
-func calcSumWorkHoursEachUser(worklogInfoList *[]WorklogInfo, emailsForObservation Haystack) map[string]int64 {
+func calcSumWorkHoursEachUser(
+	worklogInfoList *[]WorklogInfo,
+	emailsForObservation Haystack,
+	mYesterday *systray.MenuItem,
+) map[string]int64 {
 	userWorklogList := make(map[string]int64)
-	sinceDate := getSinceDate()
+	sinceDate := getSinceDate(mYesterday)
 
 	for _, email := range emailsForObservation {
 		userWorklogList[email] = 0
@@ -194,17 +198,42 @@ func calcSumWorkHoursEachUser(worklogInfoList *[]WorklogInfo, emailsForObservati
 			continue
 		}
 
+		toDate := getToDate(mYesterday)
+
+		if mYesterday.Checked() && started.After(toDate) {
+			continue
+		}
+
 		userWorklogList[item.Author.EmailAddress] += item.TimeSpentSeconds
 	}
 
 	return userWorklogList
 }
 
-func getSinceDate() time.Time {
+func getSinceDate(mYesterday *systray.MenuItem) time.Time {
 	loc, _ := time.LoadLocation("Europe/Moscow")
-	year, month, day := time.Now().In(loc).Date()
+	since := time.Now()
+
+	if mYesterday.Checked() {
+		since = since.AddDate(0, 0, -1)
+	}
+
+	year, month, day := since.In(loc).Date()
 
 	return time.Date(year, month, day, 0, 0, 0, 0, loc)
+}
+
+func getToDate(mYesterday *systray.MenuItem) time.Time {
+	loc, _ := time.LoadLocation("Europe/Moscow")
+	to := time.Now()
+
+	if mYesterday.Checked() {
+		to = to.AddDate(0, 0, -1)
+	}
+
+	year, month, day := to.In(loc).Date()
+
+	return time.Date(year, month, day, 23, 59, 59, 0, loc)
 }
 
 func onReady() {
@@ -225,11 +254,22 @@ func onReady() {
 	}
 
 	systray.AddSeparator()
+	mYesterday := systray.AddMenuItem("Yesterday", "Yesterday")
+	mYesterday.Check()
+
+	systray.AddSeparator()
 	mQuit := systray.AddMenuItem("Quit", "Quit the whole app")
 
 	go func() {
 		for {
 			select {
+			case <-mYesterday.ClickedCh:
+				if mYesterday.Checked() {
+					mYesterday.Uncheck()
+				} else {
+					mYesterday.Check()
+				}
+
 			case <-mQuit.ClickedCh:
 				systray.Quit()
 			case <-mRefresh.ClickedCh:
@@ -238,9 +278,9 @@ func onReady() {
 					employeeMenuList[email].SetTitle(fmt.Sprintf("%s - ? hours", email))
 				}
 
-				worklogIds := retrieveWorklogIds()
+				worklogIds := retrieveWorklogIds(mYesterday)
 				worklogInfoList := retrieveWorklogInfoList(worklogIds)
-				sumWorkHoursEachUser := calcSumWorkHoursEachUser(worklogInfoList, emailsForObservation)
+				sumWorkHoursEachUser := calcSumWorkHoursEachUser(worklogInfoList, emailsForObservation, mYesterday)
 
 				for email, timeSpentSeconds := range sumWorkHoursEachUser {
 					if !emailsForObservation.Has(email) {
@@ -255,16 +295,24 @@ func onReady() {
 			case <-mAsk.ClickedCh:
 				thresholdHours, _ := strconv.Atoi(env["JIRA_THRESHOLD_HOURS"])
 
+				attachmentText := "Do not forget log time"
+
+				if mYesterday.Checked() {
+					attachmentText = "Do not forget log time for yesterday"
+				} else {
+					attachmentText = "Do not forget log time for today"
+				}
+
 				attachment := slack.Attachment{
 					Pretext: "Time log notification",
-					Text:    "Do not forget log time for today",
+					Text:    attachmentText,
 					Color:   "#FFC700",
 					Fields:  []slack.AttachmentField{},
 				}
 
-				worklogIds := retrieveWorklogIds()
+				worklogIds := retrieveWorklogIds(mYesterday)
 				worklogInfoList := retrieveWorklogInfoList(worklogIds)
-				sumWorkHoursEachUser := calcSumWorkHoursEachUser(worklogInfoList, emailsForObservation)
+				sumWorkHoursEachUser := calcSumWorkHoursEachUser(worklogInfoList, emailsForObservation, mYesterday)
 
 				for email, timeSpentSeconds := range sumWorkHoursEachUser {
 					if !emailsForObservation.Has(email) {

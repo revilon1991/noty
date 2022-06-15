@@ -1,7 +1,9 @@
 ## [Unreleased]
+### Added
+- The flag yesterday for switching the work application to the previous day.
 
 ## [0.2.0] - 2022-04-13
-# Added
+### Added
 - Mention user to slack. Permission - `users:read.email`
 
 ## [0.1.1] - 2022-04-11
