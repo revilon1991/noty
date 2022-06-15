@@ -1,4 +1,6 @@
 ## [Unreleased]
+
+## [0.3.0] - 2022-06-15
 ### Added
 - The flag yesterday for switching the work application to the previous day.
 
