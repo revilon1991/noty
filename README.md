@@ -29,8 +29,9 @@ _It's expected that [Make](https://www.gnu.org/software/make/) was installed in 
 2. Click to ![Noty](./Resources/icon-xss.png "Noty") from menu bar.
 
 ### Additional
-* The slack token generates by [this](https://slack.com/help/articles/215770388-Create-and-regenerate-API-tokens#custom-or-third-party-app-tokens) instructions.
+* The `SLACK_TOKEN` generates by [this](https://slack.com/help/articles/215770388-Create-and-regenerate-API-tokens#custom-or-third-party-app-tokens) instructions.
     * You make an application and install that to your workspace by above instractions after that you'll see token.
+* The `JIRA_API_TOKEN` generates [here](https://id.atlassian.com/manage-profile/security/api-tokens)
 
 License
 -------
