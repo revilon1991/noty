@@ -32,6 +32,10 @@ _It's expected that [Make](https://www.gnu.org/software/make/) was installed in 
 ### Additional
 * The `SLACK_TOKEN` generates by [this](https://slack.com/help/articles/215770388-Create-and-regenerate-API-tokens#custom-or-third-party-app-tokens) instructions.
     * You make an application and install that to your workspace by above instractions after that you'll see token.
+    * You should provide next permissions:
+        * Send messages as @YourNotyBot
+        * View email addresses of people in a workspace
+        * View people in a workspace
 * The `JIRA_API_TOKEN` generates [here](https://id.atlassian.com/manage-profile/security/api-tokens)
 
 License
