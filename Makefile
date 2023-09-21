@@ -10,6 +10,13 @@ ICON_SET_PATH="./bin/$(NAME).app/Contents/icon.iconset"
 ICON_OUTPUT_PATH="./bin/$(NAME).app/Contents/Resources/icon.png.png"
 ICON_INPUT_PATH="./Resources/icon.png"
 
+ifeq ($(BUILDARCH),aarch64)
+        BUILDARCH=arm64
+endif
+ifeq ($(BUILDARCH),x86_64)
+        BUILDARCH=amd64
+endif
+
 all: clean build
 
 clean:
@@ -42,7 +49,7 @@ build: clean
 	@rm $(ICON_OUTPUT_PATH)
 
 	@echo ">> building..."
-	@env CGO_ENABLED=1 GOOS=darwin GOARCH=amd64 go build -ldflags "-X main.Version=$(VERSION)" -o ./bin/$(NAME).app/Contents/MacOS/$(NAME) ./cmd/...
+	@env CGO_ENABLED=1 GOOS=darwin GOARCH=$(BUILDARCH) go build -ldflags "-X main.Version=$(VERSION)" -o ./bin/$(NAME).app/Contents/MacOS/$(NAME) ./cmd/...
 	@chmod +x ./bin/$(NAME).app/Contents/MacOS/$(NAME)
 
 	@echo "Version: $(VERSION)"

@@ -1,4 +1,9 @@
 ## [Unreleased]
+### Added
+- Auto choice build makefile for `arm64` and `amd64` arch.  
+### Changed
+- Update minimum go version from `1.17` to `1.20`.
+- Update `systray` package to `v1.2.2`.
 
 ## [0.3.0] - 2022-06-15
 ### Added

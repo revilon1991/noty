@@ -1,17 +1,16 @@
 module github.com/revilon1991/noty
 
-go 1.17
+go 1.20
 
 require (
 	github.com/andygrunwald/go-jira v1.15.1
 	github.com/davecgh/go-spew v1.1.1
-	github.com/getlantern/systray v1.2.1
+	github.com/getlantern/systray v1.2.2
 	github.com/joho/godotenv v1.4.0
 	github.com/slack-go/slack v0.10.2
 )
 
 require (
-	github.com/cratonica/2goarray v0.0.0-20190331194516-514510793eaa // indirect
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/getlantern/context v0.0.0-20190109183933-c447772a6520 // indirect
 	github.com/getlantern/errors v0.0.0-20190325191628-abdb3e3e36f7 // indirect
@@ -26,7 +25,5 @@ require (
 	github.com/oxtoacart/bpool v0.0.0-20190530202638-03653db5a59c // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/trivago/tgo v1.0.7 // indirect
-	golang.org/x/crypto v0.0.0-20220408190544-5352b0902921 // indirect
-	golang.org/x/sys v0.0.0-20210615035016-665e8c7367d1 // indirect
-	golang.org/x/term v0.0.0-20210220032956-6a3ed077a48d // indirect
+	golang.org/x/sys v0.1.0 // indirect
 )
