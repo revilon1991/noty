@@ -12,6 +12,7 @@ Someone is waiting for the notification that will be sent automatically.
 ----
 System requirements:
 * OSX 12.2.1 and higher
+* GoLang 1.18.3 and higher
 
 ### Installation
 Build from the source:
@@ -27,6 +28,15 @@ _It's expected that [Make](https://www.gnu.org/software/make/) was installed in 
 ### Usage
 1. Run `bin/Noty.app`.
 2. Click to ![Noty](./Resources/icon-xss.png "Noty") from menu bar.
+
+### Additional
+* The `SLACK_TOKEN` generates by [this](https://slack.com/help/articles/215770388-Create-and-regenerate-API-tokens#custom-or-third-party-app-tokens) instructions.
+    * You make an application and install that to your workspace by above instractions after that you'll see token.
+    * You should provide next permissions:
+        * `chat:write` - Send messages as @YourNotyBot
+        * `users:read` - View people in a workspace
+        * `users:read.email` - View email addresses of people in a workspace
+* The `JIRA_API_TOKEN` generates [here](https://id.atlassian.com/manage-profile/security/api-tokens)
 
 License
 -------
