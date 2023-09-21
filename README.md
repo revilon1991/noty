@@ -11,8 +11,8 @@ Someone is waiting for the notification that will be sent automatically.
 
 ----
 System requirements:
-* OSX 12.2.1 and higher
-* GoLang 1.18.3 and higher
+* OSX 12.5.1 and higher
+* GoLang 1.20 and higher
 
 ### Installation
 Build from the source:
